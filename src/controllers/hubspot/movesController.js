@@ -1,4 +1,4 @@
-import { errorHandle } from "../../utils/errorHandle.js";
+import { errorHandle } from "../../utils/handleError.js";
 import { createObjectsBatch } from "../../services/hubspot/hubspotServices.js";
 
 export const setMoves = async (dataArray) => {
