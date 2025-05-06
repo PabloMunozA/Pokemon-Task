@@ -1,9 +1,9 @@
 import { connectDB } from "../../dataBase/connection.js";
 
 /**
- * Obtiene el estado de asociación para un pokémon específico
- * @param {string} pokemonId - ID del pokémon en HubSpot
- * @returns {Object|null} - Estado de asociación o null si no existe
+ * Retrieves the association state for a specific Pokémon
+ * @param {string} pokemonId - Pokémon ID in HubSpot
+ * @returns {Object|null} - Association state or null if it doesn't exist
  */
 export const getAssociationState = async (pokemonId) => {
   try {
@@ -12,34 +12,46 @@ export const getAssociationState = async (pokemonId) => {
     const state = await collection.findOne({ pokemon_id: pokemonId });
     return state;
   } catch (error) {
-    console.error("Error al obtener estado de asociación:", error);
+    console.error("Error retrieving association state:", error);
     return null;
   }
 };
 
 /**
- * Actualiza o crea el estado de asociación para un pokémon
- * @param {Object} state - Estado de asociación a guardar
- * @returns {Object} - Resultado de la operación
+ * Updates or creates the association state for a Pokémon
+ * @param {Object} state - Association state to be saved
+ * @returns {Object} - Updated document or operation result
  */
 export const updateAssociationState = async (state) => {
   try {
+    if (!state?.pokemon_id) {
+      throw new Error("The 'state' object must contain a 'pokemon_id'");
+    }
+
     const db = await connectDB();
     const collection = db.collection("association_states");
 
-    // Actualizar si existe, insertar si no
-    const result = await collection.updateOne({ pokemon_id: state.pokemon_id }, { $set: state }, { upsert: true });
+    const updatedState = {
+      ...state,
+      updatedAt: new Date()
+    };
 
-    return result;
+    const result = await collection.findOneAndUpdate(
+      { pokemon_id: state.pokemon_id },
+      { $set: updatedState },
+      { upsert: true, returnDocument: "after" }
+    );
+
+    return result.value;
   } catch (error) {
-    console.error("Error al actualizar estado de asociación:", error);
+    console.error("Error updating association state:", error);
     throw error;
   }
 };
 
 /**
- * Obtiene un resumen del estado de todas las asociaciones
- * @returns {Object} - Resumen del estado de asociaciones
+ * Retrieves a summary of all association states
+ * @returns {Object} - Summary of association states
  */
 export const getAssociationSummary = async () => {
   try {
@@ -57,7 +69,7 @@ export const getAssociationSummary = async () => {
       completionPercentage: total > 0 ? (completed / total) * 100 : 0,
     };
   } catch (error) {
-    console.error("Error al obtener resumen de asociaciones:", error);
+    console.error("Error retrieving association summary:", error);
     return {
       total: 0,
       completed: 0,

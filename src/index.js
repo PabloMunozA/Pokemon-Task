@@ -1,4 +1,3 @@
-// index.js
 import { getAll } from './services/pokemon/pokemonServices.js';
 import { getLocations } from './controllers/pokemon/locationControllers.js';
 import { getMoves } from './controllers/pokemon/moveControllers.js';
@@ -10,17 +9,27 @@ import { setPokemons } from './controllers/hubspot/pokemonsController.js';
 
 import { savePokemonData } from './controllers/database/dataBaseController.js';
 import { closeDB, connectDB } from './dataBase/connection.js';
-import { getAssociationSummary } from './services/database/stateService.js';
-import { associatePokemonLocations, associatePokemonMoves } from './controllers/hubspot/associationsController.js';
+import { getAssociationSummary } from './services/database/stateService.js'; 
+import { associatePokemonLocations, associatePokemonMoves } from './controllers/hubspot/associationsController.js'; 
+import { getMigrationStatus, setMigrationStatus } from './services/database/migrationStateService.js';
 
 const initMigration = async () => {
 
-  /* 
+  const migrationState = await getMigrationStatus();
+
+  if (migrationState?.completed) {
+    console.log("🛑 Migration already completed. It will not run again.");
+    await closeDB();
+    return;
+  }
+
+  console.log("✅ Starting migration...");
+
   // Get Location
   const locations = await getAll({ slug: 'location', limit: 100 });
   const formatedLocation = await getLocations({ locations: locations.results });
   const hsLocationData = await setLocations(formatedLocation);
-  await savePokemonData({ data:hsLocationData, collection: 'locations' }); 
+  await savePokemonData({ data: hsLocationData, collection: 'locations' }); 
   console.log(JSON.stringify(hsLocationData, null, 2));  
 
   // Get Move
@@ -28,51 +37,53 @@ const initMigration = async () => {
   const formatedMoves = await getMoves({ moves: moves.results });
   const hsMovesData = await setMoves(formatedMoves); 
   console.log(JSON.stringify(hsMovesData, null, 2));
-  await savePokemonData({ data:hsMovesData, collection: 'moves' }); 
+  await savePokemonData({ data: hsMovesData, collection: 'moves' }); 
 
-  // Get Pokemons
+  // Get Pokémons
   const pokemons = await getAll({ slug: 'pokemon', limit: 100 });
   const formatedPokemon = await getPokemons({ pokemons: pokemons.results });
   const hsPokemonData = await setPokemons(formatedPokemon);
   console.log(JSON.stringify(hsPokemonData, null, 2));
-  await savePokemonData({ data:hsPokemonData, collection: 'pokemons' });
-  */
+  await savePokemonData({ data: hsPokemonData, collection: 'pokemons' });
 
-  // Obtener datos de MongoDB para crear asociaciones
+  // Get data from MongoDB to create associations
   const db = await connectDB();
   const locationsCollection = db.collection("locations");
   const movesCollection = db.collection("moves");
   const pokemonsCollection = db.collection("pokemons");
 
-  const locations = await locationsCollection.find({}).toArray();
-  const moves = await movesCollection.find({}).toArray();
-  const pokemons = await pokemonsCollection.find({}).toArray();
+  const locationsFromDB = await locationsCollection.find({}).toArray();
+  const movesFromDB = await movesCollection.find({}).toArray();
+  const pokemonsFromDB = await pokemonsCollection.find({}).toArray();
 
   console.log(
-    `Datos obtenidos de MongoDB: ${locations.length} ubicaciones, ${moves.length} movimientos, ${pokemons.length} pokémons`
+    `Data retrieved from MongoDB: ${locationsFromDB.length} locations, ${movesFromDB.length} moves, ${pokemonsFromDB.length} pokémons`
   );
 
-//   const locationAssociations = await associatePokemonLocations({
-//     pokemons,
-//     targetObjects: locations,
-//     associationType: "locations",
-//     associationId: 1,
-//     associationCategoryHubspot: "HUBSPOT_DEFINED",
-//     fromObjectTypeId: "contacts",
-//     toObjectTypeId: "companies",
-//   });
+  const locationAssociations = await associatePokemonLocations({
+    pokemons: pokemonsFromDB,
+    targetObjects: locationsFromDB,
+    associationType: "locations",
+    associationId: 1,
+    associationCategoryHubspot: "HUBSPOT_DEFINED",
+    fromObjectTypeId: "contacts",
+    toObjectTypeId: "companies",
+  });
 
   const moveAssociations = await associatePokemonMoves({
-    pokemons,
-    targetObjects: moves,
+    pokemons: pokemonsFromDB,
+    targetObjects: movesFromDB,
     associationType: "moves",
     associationId: 19,
     associationCategoryHubspot: "USER_DEFINED",
     fromObjectTypeId: "contacts",
     toObjectTypeId: "moves",
-
   });
 
+  // At the end of a successful migration:
+  await setMigrationStatus(true);
+  await getAssociationSummary();
+  console.log("✅ Migration completed and status updated.");
   await closeDB();
 };
 

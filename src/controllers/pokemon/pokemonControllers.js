@@ -31,21 +31,21 @@ export const getPokemons = async ({ pokemons = [] }) => {
 
         const locationData = await request({ url: pokemon.location_area_encounters, method: 'get' });
 
-        // Obtener location real desde location_area
+        // Get actual location from location_area
         const locationPromises = locationData.map(async loc => {
             const locationAreaUrl = loc.location_area?.url;
             if (locationAreaUrl) {
                 const locationAreaData = await request({ url: locationAreaUrl, method: 'get' });
                 const locationUrl = locationAreaData?.location?.url;
                 if (locationUrl) {
-                    return locationUrl.split('/').filter(Boolean).pop(); // ID real del location
+                    return locationUrl.split('/').filter(Boolean).pop(); // ID Real Location
                 }
             }
             return null;
         });
 
         const resolvedLocations = await Promise.all(locationPromises);
-        const uniqueLocationIds = [...new Set(resolvedLocations.filter(Boolean))]; // Evita duplicados y nulos
+        const uniqueLocationIds = [...new Set(resolvedLocations.filter(Boolean))]; // Avoid duplicates and nulls
 
         pokemon.location_area_encounters_data = uniqueLocationIds;
 

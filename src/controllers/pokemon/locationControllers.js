@@ -21,7 +21,5 @@ export const getLocations = async ({ locations = [] }) => {
         dataLocations.push(builtLocation);
     }
 
-    /* console.error(JSON.stringify(dataLocations, null, 2));
-    console.log(dataLocations.length); */
     return dataLocations;
 };
